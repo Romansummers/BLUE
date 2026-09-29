@@ -1,2 +1,2 @@
-pyensembl==1.9.0
-pysam==0.17.0
+pyensembl==2.16.0
+pysam==0.24.1

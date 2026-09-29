@@ -48,7 +48,7 @@ class FusionGUI:
     NOTE: Both a chromosome AND a reference genome need to be
     loaded in order to:
     a) Search by gene name
-    b)Display gene names when using the chromosome viewer
+    b) Display gene names when using the chromosome viewer
 
     """
 
@@ -471,7 +471,7 @@ class MenuFunctions(FusionGUI):
         VIEWER_SPAN = CHROM_END - CHROM_START
 
         SEL_CHROMOSOME = event.widget.get().replace('chr', '')
-        file = "Chromosomes/Homo_sapiens.GRCh38.dna.chromosome." + str(SEL_CHROMOSOME) + ".fa.gz"
+        file = "../Chromosomes/Homo_sapiens.GRCh38.dna.chromosome." + str(SEL_CHROMOSOME) + ".fa.gz"
         if "Select" not in SEL_CHROMOSOME:
             try:
                 ResetFunctions(self.GUI).reset_chromosome()
@@ -508,7 +508,7 @@ class MenuFunctions(FusionGUI):
 
         # Ask the user to manually select a reference file
         # file = filedialog.askopenfilename(filetypes=(("gtf files", "*.gtf"), ("All files", "*.*")))
-        file = "Genomes/Homo_sapiens.GRCh38.100.gtf"
+        file = "../Genomes/Homo_sapiens.GRCh38.100.gtf"
         if file:
             try:
                 init = InitFiles(file, "GTF")
@@ -695,8 +695,13 @@ class AppendFunctions(FusionGUI):
         global Gene1Label
         global Gene2Label
 
-        Gene1Link = "https://uswest.ensembl.org/Homo_sapiens/Gene/Summary?g=" + str(Gene1ID)
-        Gene2Link = "https://uswest.ensembl.org/Homo_sapiens/Gene/Summary?g=" + str(Gene2ID)
+        # Gene1Link = "https://uswest.ensembl.org/Homo_sapiens/Gene/Summary?g=" + str(Gene1ID)
+        # Gene2Link = "https://uswest.ensembl.org/Homo_sapiens/Gene/Summary?g=" + str(Gene2ID)
+
+        base_path = "https://www.ensembl.org/feature-explorer/59871324-7803-4234-856e-2a2bd96d7b3c/gene"
+
+        Gene1Link = f"{base_path}:{Gene1ID}"
+        Gene2Link = f"{base_path}:{Gene2ID}"
 
         self.GUI.Gene1Txt.config(state=NORMAL)
         self.GUI.Gene1Txt.insert(INSERT, Gene1Name)
