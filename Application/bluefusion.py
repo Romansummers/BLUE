@@ -1,3 +1,10 @@
+"""Main module to run the BLUE interface"""
+
+import os
+import shutil
+import platform
+import subprocess
+from pathlib import Path
 import tkinter as tk
 import webbrowser
 
@@ -26,6 +33,79 @@ BAM_LOADED = False
 FUSION_GENES = []
 
 DEFAULT_THEME = "lightsteelblue1"  # The color of the application
+
+Gene1Label = None
+Gene2Label = None
+
+def open_url(url: str, parent=None):
+    """
+    Open a URL using whichever browser or launcher is available.
+    Automatically handles WSL2, Linux desktop handlers, direct browser binaries,
+    and falls back to copying the URL to clipboard if no browser can launch.
+    """
+    is_wsl = "microsoft" in platform.uname().release.lower() or os.path.exists("/proc/sys/fs/binfmt_misc/WSLInterop")
+
+    # 1. WSL: open using Windows host default browser
+    if is_wsl:
+        if shutil.which("wslview"):
+            try:
+                subprocess.Popen(["wslview", url])
+                return True
+            except Exception:
+                pass
+
+        if shutil.which("cmd.exe"):
+            try:
+                # 'start "" "<url>"' launches the default Windows browser
+                subprocess.Popen(["cmd.exe", "/c", "start", "", url])
+                return True
+            except Exception:
+                pass
+
+        if shutil.which("powershell.exe"):
+            try:
+                subprocess.Popen(["powershell.exe", "-NoProfile", "-Command", f"Start-Process '{url}'"])
+                return True
+            except Exception:
+                pass
+
+    # 2. Standard Linux desktop launchers (skip gio if broken)
+    for opener in ["xdg-open", "sensible-browser", "x-www-browser"]:
+        if shutil.which(opener):
+            try:
+                subprocess.Popen([opener, url])
+                return True
+            except Exception:
+                pass
+
+    # 3. Direct browser binaries in PATH
+    browsers = ["google-chrome", "chromium", "chromium-browser", "firefox", "brave-browser", "microsoft-edge", "opera"]
+    for b in browsers:
+        if shutil.which(b):
+            try:
+                subprocess.Popen([b, url])
+                return True
+            except Exception:
+                pass
+
+    # 4. Standard library webbrowser fallback
+    try:
+        if webbrowser.open_new(url):
+            return True
+    except Exception:
+        pass
+
+    # 5. Graceful fallback: copy link to clipboard and notify
+    if parent:
+        try:
+            parent.clipboard_clear()
+            parent.clipboard_append(url)
+            messagebox.showinfo("Link Copied", f"Could not launch browser.\nLink copied to clipboard:\n{url}")
+            return False
+        except Exception:
+            pass
+
+    return False
 
 
 class FusionGUI:
@@ -226,8 +306,8 @@ class FusionGUI:
 
         self.win.mainloop()
 
-    # Displays the genes currently in view of the chromosome viewer
     def update_gene_area(self):
+        """Display the genes currently in view of the chromosome viewer"""
         try:
             if SEL_CHROMOSOME != "" and GENOME_LOADED:  # First check if a chromosome has been loaded
                 self.genes_in_area.delete("1.0", END)  # Clear the area
@@ -281,14 +361,18 @@ class MouseFunctions(FusionGUI):
     def on_enter(event):
         event.widget.config(cursor="")
 
-    # Move Fusion/Chromosome viewers with mouse
-    # Chromosomal viewer gets position and adjusts due to the large sequence available
     @staticmethod
-    def move_start(event):  # Get the current position upon clicking in the viewer
+    def move_start(event):
+        """Move Fusion/Chromosome viewers with mouse.
+        
+        Chromosomal viewer gets position and adjusts due to the large sequence available.
+        Get the current position upon clicking in the viewer
+        """
         event.widget.scan_mark(event.x, event.y)
         event.widget.config(cursor="hand1")
 
-    def move_move(self, event):  # Adjust the chromosome sequence when nearing the current portions beginning/end
+    def move_move(self, event):
+        """Adjust the chromosome sequence when nearing the current portions beginning/end"""
         chrom_indx = self.GUI.chrom_area.index(INSERT)  # Default 1.0 if no chromosome is loaded
         line_num = int(str(chrom_indx)[0:1])  # Get the line number
         # Get the position in the viewer to update if reaches above or below a certain threshold
@@ -317,8 +401,8 @@ class MouseFunctions(FusionGUI):
                         ResetFunctions(self.GUI).reset_chromosome()  # Reset chrom area and populate with new section
                         AppendFunctions(self.GUI).insert_chrom_seq(CHROMOSOME_SEQ, new_start_span, new_end_span, True)
 
-    # Reactivates unbound functions
     def rebind(self):
+        """Reactivates unbound functions"""
         self.GUI.chrom_area.bind_class('post-class-bindings', '<ButtonPress-1>', self.move_start)
         self.GUI.chrom_area.bind_class('post-class-bindings', '<B1-Motion>', self.move_move)
 
@@ -336,8 +420,8 @@ class SearchFunctions(FusionGUI):
     def __init__(self, GUI):
         self.GUI = GUI
 
-    # Go to the position or gene position entered in the search bar
     def search_position(self, entered):
+        """Go to the position or gene position entered in the search bar"""
         entered = entered.replace(",", "")  # Format the position in case of commas
         if entered.strip() == "":
             return  # Blank search will do nothing
@@ -365,9 +449,9 @@ class SearchFunctions(FusionGUI):
                 adjusted_search_pos = int(entered) - int(fuse_pos[0])
                 self.GUI.fusion_area.see("1." + str(adjusted_search_pos+8))
 
-    # Looks for text and highlights it
     @staticmethod
     def search(text_widget, keyword, tag):
+        """Look for text and highlight it"""
         pos = '1.0'
         while True:
             idx = text_widget.search(keyword, pos, END)
@@ -376,8 +460,8 @@ class SearchFunctions(FusionGUI):
             pos = '{}+{}c'.format(idx, len(keyword))
             text_widget.tag_add(tag, idx, pos)
 
-    # This focuses the scroll/text area on the point of fusion genes meeting
     def focus_fusion_area(self, len_diff):
+        """Focus the scroll/text area on the point of fusion genes meeting"""
         fusion_indx = "1." + str(len_diff+8)
         self.GUI.fusion_area.see(fusion_indx)
 
@@ -396,9 +480,9 @@ class MenuFunctions(FusionGUI):
     def __init__(self, GUI):
         self.GUI = GUI
 
-    # Display the document that shows how to use the application and what everything means
     @staticmethod
     def open_how_to():
+        """Display the document that shows how to use the application and what everything means"""
         WinUse = Tk()
         WinUse.title("How to Use Application")
 
@@ -452,13 +536,13 @@ class MenuFunctions(FusionGUI):
     def report_error():
         print("Nothing to see here.")
 
-    # Changes the color scheme of the application
     def change_theme(self, theme):
+        """Change the color scheme of the application"""
         for wid in self.GUI.widget_list:
             wid.configure(bg=theme)
 
-    # Given the zipped chromosome file, load the chromosome fasta into the chromosomal window
     def load_chromosome(self, event):
+        """Given the zipped chromosome file, load the chromosome fasta into the chromosomal window"""
         global CHROM_START  # Starting position of the chromosome region. Default = 100000
         global CHROM_END  # Ending position of the chromosome region. Default = 110000
         global VIEWER_SPAN  # Number of bases that span the chromosomal viewer.
@@ -471,7 +555,10 @@ class MenuFunctions(FusionGUI):
         VIEWER_SPAN = CHROM_END - CHROM_START
 
         SEL_CHROMOSOME = event.widget.get().replace('chr', '')
-        file = "../Chromosomes/Homo_sapiens.GRCh38.dna.chromosome." + str(SEL_CHROMOSOME) + ".fa.gz"
+        file = Path(__file__).resolve().parent.parent.joinpath(
+            f"Chromosomes/Homo_sapiens.GRCh38.dna.chromosome.{SEL_CHROMOSOME}.fa.gz"
+        ).as_posix()
+        # file = "../Chromosomes/Homo_sapiens.GRCh38.dna.chromosome." + str(SEL_CHROMOSOME) + ".fa.gz"
         if "Select" not in SEL_CHROMOSOME:
             try:
                 ResetFunctions(self.GUI).reset_chromosome()
@@ -496,8 +583,9 @@ class MenuFunctions(FusionGUI):
                 AppendFunctions(self.GUI).insert_reads(init.reads)  # Load in read information into the display
                 BAM_LOADED = True
             except Exception as Ex:
-                Messages.display_error("Error loading BAM file. " + str(Ex) +
-                                         ". Please make sure bai file exists in the same location as the BAM.")
+                Messages.display_error(
+                    f"Error loading BAM file: {Ex}. Please make sure bai file exists in the same location as the BAM."
+                )
 
     # Open and Load Genome
     def load_genome_file(self, refGen):
@@ -508,7 +596,7 @@ class MenuFunctions(FusionGUI):
 
         # Ask the user to manually select a reference file
         # file = filedialog.askopenfilename(filetypes=(("gtf files", "*.gtf"), ("All files", "*.*")))
-        file = "../Genomes/Homo_sapiens.GRCh38.100.gtf"
+        file = Path(__file__).resolve().parent.parent.joinpath("Genomes/Homo_sapiens.GRCh38.100.gtf").as_posix()
         if file:
             try:
                 init = InitFiles(file, "GTF")
@@ -521,13 +609,13 @@ class MenuFunctions(FusionGUI):
                     ResetFunctions(self.GUI).reset_reads()
                     BAMParser().map_fusion_reads()
             except Exception as Ex:
-                Messages.display_error("Error loading GTF file. " + str(Ex) +
-                                "The file may be downloaded at this address: "
-                                "ftp://ftp.ensembl.org/pub/release-100/gtf/homo_sapiens/Homo_sapiens.GRCh38.100.gtf.gz")
+                Messages.display_error(
+                    f"Error loading GTF file: {Ex}. The file may be downloaded at this address: "
+                    "ftp://ftp.ensembl.org/pub/release-100/gtf/homo_sapiens/Homo_sapiens.GRCh38.100.gtf.gz"
+                )
 
 
 class Messages:
-
     """
     Functions to display dialog message boxes
     """
@@ -566,8 +654,9 @@ class ResetFunctions(FusionGUI):
 
         fuse_pos, fuse_lens = BAMParser.get_fusions()
         if len(fuse_pos) != 0:  # If fusions found we want to reset the "More information" labels here
-            Gene1Label.grid_forget()
-            Gene2Label.grid_forget()
+            if Gene1Label and Gene2Label:
+                Gene1Label.grid_forget()
+                Gene2Label.grid_forget()
 
         self.GUI.fusion_area.delete('1.0', END)
 
@@ -690,14 +779,8 @@ class AppendFunctions(FusionGUI):
         viewer.delete("1." + str(length+20), '1.99999999999')  # Remove extra spaces and leave room for the end position
         viewer.delete("2." + str(length+20), '2.99999999999')
 
-    # List the fusion genes and add additional info
     def add_gene_info(self, Gene1Name, Gene2Name, Gene1ID, Gene2ID):
-        global Gene1Label
-        global Gene2Label
-
-        # Gene1Link = "https://uswest.ensembl.org/Homo_sapiens/Gene/Summary?g=" + str(Gene1ID)
-        # Gene2Link = "https://uswest.ensembl.org/Homo_sapiens/Gene/Summary?g=" + str(Gene2ID)
-
+        """List the fusion genes and add additional information"""
         base_path = "https://www.ensembl.org/feature-explorer/59871324-7803-4234-856e-2a2bd96d7b3c/gene"
 
         Gene1Link = f"{base_path}:{Gene1ID}"
@@ -735,8 +818,8 @@ class AppendFunctions(FusionGUI):
         var2.set("More information")
         Gene2Label.bind("<Button-1>", lambda e: AdditionalFunctions(self.GUI).show_more_info(Gene2Name, Gene2Link))
 
-    # If fusion is found, display the summary
     def add_fusion_summary(self, Gene1Name, Gene2Name, Gene1Pos, Gene2Pos, Gene1Length, Gene2Length):
+        """Create a summary of the genes if a fusion was found among them"""
         len_diff = Gene1Length - Gene2Length
         intersection = Gene1Pos + len_diff
         Gene1End = str(Gene1Pos + Gene1Length)
@@ -766,9 +849,9 @@ class AdditionalFunctions(FusionGUI):
     def __init__(self, GUI):
         self.GUI = GUI
 
-    # Open a window with extra information about the specific gene
     @staticmethod
     def show_more_info(GeneName, GeneLink):
+        """Open a window with extra information about the specific gene"""
         subWin = Tk()
         subWin.title(GeneName)
 
@@ -777,7 +860,8 @@ class AdditionalFunctions(FusionGUI):
 
         LinkLabel = Label(frame, width=45, height=1, text="Click for Online Resources", background="light cyan",
                           foreground="blue", font="Helvetica 11 bold")
-        LinkLabel.bind("<Button-1>", lambda e: webbrowser.open_new(GeneLink))
+        # LinkLabel.bind("<Button-1>", lambda e: webbrowser.open_new(GeneLink))
+        LinkLabel.bind("<Button-1>", lambda e: open_url(GeneLink))
         LinkLabel.pack(side=TOP)
 
         infoBox = Text(frame,  width=45, height=15)
