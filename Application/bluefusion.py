@@ -45,7 +45,7 @@ def open_url(url: str, parent=None):
     """
     is_wsl = "microsoft" in platform.uname().release.lower() or os.path.exists("/proc/sys/fs/binfmt_misc/WSLInterop")
 
-    # 1. WSL: open using Windows host default browser
+    # WSL: open using Windows host default browser
     if is_wsl:
         if shutil.which("wslview"):
             try:
@@ -69,7 +69,7 @@ def open_url(url: str, parent=None):
             except Exception:
                 pass
 
-    # 2. Standard Linux desktop launchers (skip gio if broken)
+    # Standard Linux desktop launchers (skip gio if broken)
     for opener in ["xdg-open", "sensible-browser", "x-www-browser"]:
         if shutil.which(opener):
             try:
@@ -78,7 +78,7 @@ def open_url(url: str, parent=None):
             except Exception:
                 pass
 
-    # 3. Direct browser binaries in PATH
+    # Direct browser binaries in PATH
     browsers = ["google-chrome", "chromium", "chromium-browser", "firefox", "brave-browser", "microsoft-edge", "opera"]
     for b in browsers:
         if shutil.which(b):
@@ -88,14 +88,14 @@ def open_url(url: str, parent=None):
             except Exception:
                 pass
 
-    # 4. Standard library webbrowser fallback
+    # Standard library webbrowser fallback
     try:
         if webbrowser.open_new(url):
             return True
     except Exception:
         pass
 
-    # 5. Graceful fallback: copy link to clipboard and notify
+    # Graceful fallback: copy link to clipboard and notify
     if parent:
         try:
             parent.clipboard_clear()
@@ -574,7 +574,10 @@ class MenuFunctions(FusionGUI):
     # Open and Load BAM File
     def load_bam_file(self):
         global BAM_LOADED
-        file = filedialog.askopenfilename(filetypes=(("bam files", "*.bam"), ("All files", "*.*")))
+        file = filedialog.askopenfilename(
+            parent=self.GUI.win,
+            filetypes=(("bam files", "*.bam"), ("All files", "*.*"))
+        )
         if file:
             try:
                 ResetFunctions(self.GUI).reset_reads()  # Blank out the fusion area
