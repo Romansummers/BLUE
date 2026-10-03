@@ -15,7 +15,7 @@ from tkinter import ttk
 from tkinter import filedialog
 from tkinter import messagebox
 
-from samfile import InitFiles, BAMParser
+from samfile import InitFile, BAMParser
 
 #########################################
 # Files required:
@@ -621,7 +621,7 @@ class MenuFunctions(FusionGUI):
             try:
                 ResetFunctions(self.GUI).reset_chromosome()
                 chrom_type = "CHR" + str(SEL_CHROMOSOME)  # Set the chromosome name for extraction
-                init = InitFiles(file, chrom_type)
+                init = InitFile(file, chrom_type)
                 init.create_loading()
                 CHROMOSOME_SEQ = BAMParser().get_chromosome_seq()
                 AppendFunctions(self.GUI).insert_chrom_seq(CHROMOSOME_SEQ, CHROM_START, CHROM_END, True)
@@ -639,7 +639,7 @@ class MenuFunctions(FusionGUI):
         if file:
             try:
                 ResetFunctions(self.GUI).reset_reads()  # Blank out the fusion area
-                init = InitFiles(file, "SAM")
+                init = InitFile(file, "SAM")
                 init.create_loading()  # Create a loading bar and load the bam/sam file
                 AppendFunctions(self.GUI).insert_reads(init.reads)  # Load in read information into the display
                 BAM_LOADED = True
@@ -661,7 +661,7 @@ class MenuFunctions(FusionGUI):
         file = Path(__file__).resolve().parent.parent.joinpath(genome_file_path).as_posix()
         if file:
             try:
-                init = InitFiles(file, "GTF")
+                init = InitFile(file, "GTF")
                 init.create_loading()  # Create the loading bar and load genome
                 refLbl = Label(self.GUI.frameRef, text=f"Reference Genome {genome_file} in use", bg=DEFAULT_THEME)
                 refLbl.grid(row=0, column=0)

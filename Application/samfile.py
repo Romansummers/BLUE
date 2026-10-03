@@ -1,3 +1,5 @@
+"""Module to load and parse data from a BAM/SAM file"""
+
 import pysam
 import tkinter as tk
 from typing import Any, Union
@@ -15,9 +17,9 @@ FUSION_POSITIONS = []
 FUSION_LENGTHS = []
 
 
-class InitFiles:
+class InitFile:
     def __init__(self, filepath: str, filetype: str) -> None:
-        """Initialize the InitFiles loader.
+        """Initialize the InitFile loader.
 
         Args:
             filepath: Path to the target file.
