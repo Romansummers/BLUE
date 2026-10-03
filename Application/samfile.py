@@ -1,5 +1,6 @@
 import pysam
 import tkinter as tk
+from typing import Any, Union
 
 from pyensembl import Genome, fasta
 
@@ -15,12 +16,19 @@ FUSION_LENGTHS = []
 
 
 class InitFiles:
-    def __init__(self, filepath, filetype):
+    def __init__(self, filepath: str, filetype: str) -> None:
+        """Initialize the InitFiles loader.
+
+        Args:
+            filepath: Path to the target file.
+            filetype: Type of file to process (e.g. 'CHR', 'SAM', 'GTF').
+        """
         self.filepath = filepath
         self.filetype = filetype
         self.reads = []
 
-    def init_chr_file(self):
+    def init_chr_file(self) -> None:
+        """Load the chromosome FASTA file into memory."""
         try:
             self.filetype = self.filetype.replace("CHR", "")  # To access the FASTA, we need the exact chromosome name
             ChromosomeLoad().load_chromosome(self.filepath, self.filetype)
@@ -30,7 +38,8 @@ class InitFiles:
             root.quit()
             root.destroy()
 
-    def init_sam_file(self):
+    def init_sam_file(self) -> None:
+        """Load, store, and locate fusions within the BAM/SAM file."""
         try:
             self.loading_msg("\n\nLoading BAM file...")
             BAMParser().load_sam(self.filepath)
@@ -44,7 +53,8 @@ class InitFiles:
             root.quit()
             root.destroy()
 
-    def init_gtf_file(self):
+    def init_gtf_file(self) -> None:
+        """Load the reference genome GTF file into memory."""
         try:
             GenomeLoad().load_genome(self.filepath)
         except Exception:
@@ -53,7 +63,8 @@ class InitFiles:
             root.quit()
             root.destroy()
 
-    def create_loading(self):
+    def create_loading(self) -> None:
+        """Create and display a loading dialog while loading the file."""
         global root
         root = tk.Tk()
         root.title("Loading")
@@ -78,7 +89,12 @@ class InitFiles:
         root.mainloop()
 
     @staticmethod
-    def loading_msg(msg):
+    def loading_msg(msg: str) -> None:
+        """Update the loading dialog message.
+
+        Args:
+            msg: Message text to display.
+        """
         var1 = tk.StringVar()
         label = tk.Label(root, textvariable=var1)
         label.pack()
@@ -87,31 +103,45 @@ class InitFiles:
 
 class ChromosomeLoad:
     @staticmethod
-    def load_chromosome(file,type):
+    def load_chromosome(file: str, type: str) -> None:
+        """Load chromosome sequence from a FASTA file and store in global data.
+
+        Args:
+            file: Path to the chromosome FASTA file.
+            type: Chromosome identifier or key name.
+        """
         global chromdata
         chromdata = fasta.parse_fasta_dictionary(file)[type]
 
 
 class GenomeLoad:
-    # Loads reference genome and stores it in a glabal variable
     @staticmethod
-    def load_genome(file):
+    def load_genome(file: str) -> None:
+        """Load reference genome and store it in a global variable.
+
+        Args:
+            file: Path to the reference GTF file.
+        """
         global genedata
         genedata = Genome(reference_name='GRCh38', annotation_name='ENSEMBL', gtf_path_or_url=file)
         genedata.index()
 
 
 class BAMParser:
-    # Loads file and stores it in a global variable for class to use
-    def load_sam(self, file):
+    def load_sam(self, file: str) -> None:
+        """Load a BAM/SAM file and store the fetched alignments in a global variable.
+
+        Args:
+            file: Path to the BAM/SAM file.
+        """
         global results
 
         sam = pysam.AlignmentFile(file, "rb")
         results = sam.fetch()
 
-    # Stores every read in list to be referenced by index
     @staticmethod
-    def store_all_reads():
+    def store_all_reads() -> None:
+        """Store every read from alignment results into global lists referenced by index."""
         global ALL_QUERIES
         global ALL_POSITIONS
         global ALL_LENGTHS
@@ -138,8 +168,12 @@ class BAMParser:
             ALL_SEQUENCES.append(read.seq)
             ALL_CIGARS.append(read.cigar)
 
-    # Using the data stored, locate any fusion reads within the bam file and show it on screen
-    def map_fusion_reads(self):
+    def map_fusion_reads(self) -> list[dict[str, Any]]:
+        """Locate any fusion reads within the BAM file using stored read data.
+
+        Returns:
+            List of dictionaries containing fusion read details and coordinates.
+        """
         global FUSION_POSITIONS
         global FUSION_LENGTHS
 
@@ -225,9 +259,17 @@ class BAMParser:
 
         return FUSION_READS
 
-    # Checks if two reads are a fusion based on unique indeces
     @staticmethod
-    def get_fusion_read(left_indx, right_indx):
+    def get_fusion_read(left_indx: int, right_indx: int) -> tuple[str, int, str, int]:
+        """Check if two reads form a fusion based on their unique indices.
+
+        Args:
+            left_indx: Index of the first read.
+            right_indx: Index of the second read.
+
+        Returns:
+            Tuple of (fusion_sequence, fusion_index, supplement_sequence, supplement_index).
+        """
         fusion = "No Fusions Detected"
         fusion_indx = -1
         supplement = "No Fusions Detected"
@@ -252,9 +294,18 @@ class BAMParser:
 
         return fusion, fusion_indx, supplement, supp_indx
 
-    # This takes a number and returns an evenly distributed list of positions to use as headers
     @staticmethod
-    def get_position_headers(length, start_position, pos_between):
+    def get_position_headers(length: int, start_position: int, pos_between: int) -> list[int]:
+        """Return an evenly distributed list of positions to use as headers.
+
+        Args:
+            length: Number of base pairs spanning the read.
+            start_position: Starting genomic coordinate.
+            pos_between: Number of base pairs between each position header.
+
+        Returns:
+            List of position markers for headers.
+        """
         positions = []
 
         for x in range(length):
@@ -268,14 +319,22 @@ class BAMParser:
                 positions.append(position)
         return positions
 
-    # Use this to reference the found fusions
     @staticmethod
-    def get_fusions():
+    def get_fusions() -> tuple[list[int], list[int]]:
+        """Get the detected fusion positions and lengths.
+
+        Returns:
+            Tuple of (fusion_positions, fusion_lengths).
+        """
         return FUSION_POSITIONS, FUSION_LENGTHS
 
-    # Get the unique reads
     @staticmethod
-    def get_unique_positions():
+    def get_unique_positions() -> list[int]:
+        """Get unique starting positions across all reads.
+
+        Returns:
+            List of unique start positions.
+        """
         unique_positions = []
         for pos in ALL_POSITIONS:
             if pos not in unique_positions:
@@ -283,9 +342,18 @@ class BAMParser:
 
         return unique_positions
 
-    # Get the gene names associates with each read
     @staticmethod
-    def get_gene_names(length, position, chromosome):
+    def get_gene_names(length: int, position: int, chromosome: Union[int, str]) -> list[str]:
+        """Get the gene names associated with a read.
+
+        Args:
+            length: Length of the read sequence.
+            position: Starting position of the read.
+            chromosome: Chromosome number or contig name.
+
+        Returns:
+            List of protein-coding gene names located at the read coordinates.
+        """
         genes = []
         start_position = position
         end_position = start_position + length
@@ -297,9 +365,18 @@ class BAMParser:
 
         return genes
 
-    # Get the ID's of genes based on size, position and chromosome
     @staticmethod
-    def get_gene_ids(length, position, chromosome):
+    def get_gene_ids(length: int, position: int, chromosome: Union[int, str]) -> list[str]:
+        """Get the IDs of genes based on size, position, and chromosome.
+
+        Args:
+            length: Length of the read sequence.
+            position: Starting position of the read.
+            chromosome: Chromosome number or contig name.
+
+        Returns:
+            List of protein-coding gene IDs located at the read coordinates.
+        """
         genes = []
         start_position = position
         end_position = start_position + length
@@ -312,54 +389,101 @@ class BAMParser:
 
         return genes
 
-    # Gets all genes associated with a BAM file
-    def get_all_gene_names(self):
+    def get_all_gene_names(self) -> list[list[str]]:
+        """Get all gene names associated with a BAM file.
+
+        Returns:
+            List of gene name lists for each read.
+        """
         read_gene_names = []
 
         for i in range(len(ALL_POSITIONS)):
             read_gene_names[i] = self.get_gene_names(ALL_LENGTHS[i], ALL_POSITIONS[i], ALL_CHROMOSOMES[i])
         return read_gene_names
 
-    # Given a position and chromosome, return info about all genes located
     @staticmethod
-    def get_gene_info(start_position, chromosome):
+    def get_gene_info(start_position: int, chromosome: Union[int, str]) -> list[Any]:
+        """Return information about all genes located at a given position and chromosome.
+
+        Args:
+            start_position: Genomic starting position.
+            chromosome: Chromosome number or contig name.
+
+        Returns:
+            List of gene objects found at the locus.
+        """
         gene_names = genedata.genes_at_locus(contig=chromosome, position=start_position)
         genes = []
         for gene in gene_names:
             genes.append(gene)
         return genes
 
-    # Given a gene name, return it's ID
     @staticmethod
-    def get_id_by_name(gene_name):
+    def get_id_by_name(gene_name: str) -> str:
+        """Get the gene ID for a given gene name.
+
+        Args:
+            gene_name: Name of the gene.
+
+        Returns:
+            The Ensembl gene ID string.
+        """
         gene_id = genedata.gene_ids_of_gene_name(gene_name)
         return gene_id[0]
 
-    # Returns a string position range of a gene given a name (with size)
     @staticmethod
-    def get_positions_by_name(gene_name):
+    def get_positions_by_name(gene_name: str) -> tuple[str, str]:
+        """Return the start and end positions of a gene as strings.
+
+        Args:
+            gene_name: Name of the gene.
+
+        Returns:
+            Tuple of (start_position, end_position) as strings.
+        """
         positions = genedata.loci_of_gene_names(gene_name)
         start = positions[0].start
         end = positions[0].end
         return str(start), str(end)
 
-    # Returns the starting position of a gene by name
     @staticmethod
-    def get_start_position_by_name(gene_name):
+    def get_start_position_by_name(gene_name: str) -> int:
+        """Return the starting position of a gene by name.
+
+        Args:
+            gene_name: Name of the gene.
+
+        Returns:
+            Genomic starting coordinate of the gene.
+        """
         positions = genedata.loci_of_gene_names(gene_name)
         start_position = positions[0].start
         return start_position
 
-    # Returns the chromosome of a given gene name
     @staticmethod
-    def get_chromosome_by_name(gene_name):
+    def get_chromosome_by_name(gene_name: str) -> Union[str, int]:
+        """Return the chromosome of a given gene name.
+
+        Args:
+            gene_name: Name of the gene.
+
+        Returns:
+            Chromosome contig identifier for the gene.
+        """
         gene = genedata.genes_by_name(gene_name)
         chromsome = gene[0].contig
         return chromsome
 
-    # Get the transcript ids using the gene name
     @staticmethod
-    def get_transcript_ids_by_name(gene_name):
+    def get_transcript_ids_by_name(gene_name: str) -> list[str]:
+        """Get the transcript IDs for a given gene name.
+
+        Args:
+            gene_name: Name of the gene.
+
+        Returns:
+            Sorted list of transcript IDs.
+        """
         transcript_ids = []
         transcripts = genedata.transcript_ids_of_gene_name(gene_name)
         for t in transcripts:
@@ -367,25 +491,46 @@ class BAMParser:
         transcript_ids = sorted(transcript_ids)
         return transcript_ids
 
-    # Get the name of the transcript using the transcript id
     @staticmethod
-    def get_transcript_name_by_id(t_id):
+    def get_transcript_name_by_id(t_id: str) -> str:
+        """Get the name of the transcript using the transcript ID.
+
+        Args:
+            t_id: Transcript identifier.
+
+        Returns:
+            Name of the transcript.
+        """
         transcript = []
         t_name = genedata.transcript_name_of_transcript_id(t_id)
         transcript.append(t_name)
         return transcript[0]
 
-    # Get the start and end position of a transcript given an id
     @staticmethod
-    def get_transcript_positions_by_id(t_id):
+    def get_transcript_positions_by_id(t_id: str) -> tuple[str, str]:
+        """Get the start and end position of a transcript given an ID.
+
+        Args:
+            t_id: Transcript ID.
+
+        Returns:
+            Tuple of (start_position, end_position) as strings.
+        """
         positions = genedata.locus_of_transcript_id(t_id)
         start = positions.start
         end = positions.end
         return str(start), str(end)
 
-    # Get all exon regions associated with a transcript id
     @staticmethod
-    def get_exon_regions_by_transcript_id(t_id):
+    def get_exon_regions_by_transcript_id(t_id: str) -> tuple[list[int], list[int]]:
+        """Get all exon regions associated with a transcript ID.
+
+        Args:
+            t_id: Transcript ID used to get exon regions.
+
+        Returns:
+            Tuple of (exon_starts, exon_ends) containing sorted boundary positions.
+        """
         exon_starts = []
         exon_ends = []
         exon_ids = genedata.exon_ids_of_transcript_id(t_id)
@@ -400,9 +545,16 @@ class BAMParser:
         exon_ends = sorted(exon_ends)
         return exon_starts, exon_ends
 
-    # Returns exon regions given a gene name
     @staticmethod
-    def get_exon_regions_by_name(gene_name):
+    def get_exon_regions_by_name(gene_name: str) -> list[str]:
+        """Return exon regions given a gene name.
+
+        Args:
+            gene_name: Name of the gene to search for.
+
+        Returns:
+            Sorted list of exon region strings in 'start - end' format.
+        """
         exon_regions = []
         exon_ids = genedata.exon_ids_of_gene_name(gene_name)
         for exon_id in exon_ids:
@@ -415,21 +567,41 @@ class BAMParser:
         exon_regions = sorted(exon_regions)
         return exon_regions
 
-    # Returns chromosome sequence
     @staticmethod
-    def get_chromosome_seq():
+    def get_chromosome_seq() -> str:
+        """Return the loaded chromosome sequence.
+
+        Returns:
+            Chromosome sequence string.
+        """
         return chromdata
 
-    # Return the position of a sequence in the loaded chromosome sequence
     @staticmethod
-    def get_chrom_seq_pos(seq):
+    def get_chrom_seq_pos(seq: str) -> int:
+        """Return the position of a sequence in the loaded chromosome sequence.
+
+        Args:
+            seq: Sequence to get position of.
+
+        Returns:
+            Index position of sequence in chromosome data, or -1 if not found.
+        """
         return chromdata.find(seq)
 
-    # Stores the cigar in two lists to be referenced by index
-    # 0 = match; 1 = insertion; 2 = deletion; 3 = skip
-    # 4 = soft clipping; 5 = hard clipping, 6 = padding
     @staticmethod
-    def parse_cigar(cigar):
+    def parse_cigar(cigar: list[tuple[int, int]]) -> tuple[list[int], list[int]]:
+        """Store the CIGAR operations in two lists referenced by index.
+
+        CIGAR operation codes:
+            0 = match; 1 = insertion; 2 = deletion; 3 = skip;
+            4 = soft clipping; 5 = hard clipping; 6 = padding.
+
+        Args:
+            cigar: List of (cigar_type, cigar_length) tuples.
+
+        Returns:
+            Tuple of (cigar_types, cigar_lengths) lists.
+        """
         cigar_type = []
         cigar_length = []
         for (cigarType, cigarLength) in cigar:

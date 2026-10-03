@@ -963,5 +963,5 @@ class AdditionalFunctions(FusionGUI):
 
 
 if __name__ == "__main__":
-    gui = FusionGUI()
+    gui = FusionGUI(preloaded_genome_file="Homo_sapiens.GRCh38.100.gtf")
     gui.run()
