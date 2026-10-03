@@ -8,6 +8,8 @@ from pathlib import Path
 import tkinter as tk
 import webbrowser
 
+from enum import Enum
+
 from tkinter import *
 from tkinter import ttk
 from tkinter import filedialog
@@ -30,12 +32,34 @@ SEL_CHROMOSOME = ""
 GENOME_LOADED = False
 BAM_LOADED = False
 
+GENOMES_DIR = "Genomes"
+CHROMOSOMES_DIR = "Chromosomes"
+
+SUPPORTED_GENOMES = [
+    "Homo_sapiens.GRCh38.100.gtf"
+]
+
 FUSION_GENES = []
 
 DEFAULT_THEME = "lightsteelblue1"  # The color of the application
 
 Gene1Label = None
 Gene2Label = None
+
+
+class Theme(Enum):
+    """Enum for theme colors"""
+
+    DEFAULT = "lightsteelblue1"
+    LAVENDER = "lavender"
+    ROSE = "misty rose"
+    PINKESQUE = "thistle2"
+    ANTIQUE = "antique white"
+    SKY = "lightskyblue1"
+    AQUE = "PaleTurquoise2"
+    SNOW_WHITE = "snow2"
+    GRAYDATION = "gray81"
+
 
 def open_url(url: str, parent=None):
     """
@@ -110,7 +134,6 @@ def open_url(url: str, parent=None):
 
 class FusionGUI:
     """
-    The Fusion GUI is initialized using the runblue method.
     This application is used in conjuction with samfile.py which
     parses bam files and displays any findings on the GUI.
 
@@ -131,16 +154,40 @@ class FusionGUI:
     b) Display gene names when using the chromosome viewer
 
     """
+    def __init__(
+            self,
+            width: int = 1000,
+            height: int = 750,
+            theme: Theme = Theme.DEFAULT,
+            preloaded_genome_file: str = None
+        ):
+        """Initialize the Interface aspects
+        
+        Args:
+            width: The width of the application
+            height: The height of the application
+            theme: The theme of the application
+            preloaded_genome_file: Optional genome file to preload into the application
+        """
+        if not isinstance(theme, Theme):
+            raise ValueError("Theme is not of type Theme")
 
-    def runblue(self):
+        if not isinstance(width, int):
+            raise ValueError("width needs to be an integer")
+
+        if not isinstance(height, int):
+            raise ValueError("height needs to be an integer")
+        
         Search = SearchFunctions(self)
         MenuFunc = MenuFunctions(self)
         Mouse = MouseFunctions(self)
 
+        self.preloaded_genome_file = preloaded_genome_file
+
         self.win = Tk()
         self.win.title("BLUE")
-        self.win.geometry("1000x750")  # Size of window
-        self.win.config(bg=DEFAULT_THEME)
+        self.win.geometry(f"{width}x{height}")  # Size of window
+        self.win.config(bg=theme.value)
 
         # Create a menu bar
         menu_bar = Menu(self.win)
@@ -152,9 +199,10 @@ class FusionGUI:
         file_menu.add_separator()
         file_menu.add_command(label='Exit', command=self._quit)
         menu_bar.add_cascade(label='File', menu=file_menu)
-        # Reference human genome menu
+        # Reference genomes menu
         hg_menu = Menu(menu_bar, tearoff=0)
-        hg_menu.add_command(label='hg38', command=lambda: MenuFunc.load_genome_file("hg38"))
+        for genome in SUPPORTED_GENOMES:
+            hg_menu.add_command(label=genome, command=lambda: MenuFunc.load_genome_file(genome))
         menu_bar.add_cascade(label='Ref', menu=hg_menu)
         # Theme options
         theme_menu = Menu(menu_bar, tearoff=0)
@@ -207,7 +255,7 @@ class FusionGUI:
         chr_chosen['values'] = ("-----Select-----", "chr1", "chr2", "chr3", "chr4", "chr5",
                                 "chr6", "chr7", "chr8", "chr9", "chr10", "chr11",
                                 "chr12", "chr13", "chr14", "chr15", "chr16", "chr17",
-                                "chr18", "chr19", "chr20", "chr21", "chr22", "chrMT", "chrX", "chrY")
+                                "chr18", "chr19", "chr20", "chr21", "chr22", "chrX", "chrY")
         chr_chosen.grid(column=2, row=0)
         chr_chosen.current(0)
 
@@ -302,8 +350,15 @@ class FusionGUI:
                             self.fusion_header, self.frame3, self.Gene1Header, self.Gene2Header,
                             self.SummaryHeader, self.SummaryTxt]
 
-        self.update_gene_area()  # This looks in the chrom-view and updates any visible genes
+    def run(self):
+        """Run the application"""
+        # Schedule genome preloading immediately after the mainloop starts
+        if self.preloaded_genome_file:
+            self.win.after(100, lambda: MenuFunctions(self).load_genome_file(
+                genome_file=self.preloaded_genome_file)
+            )
 
+        self.update_gene_area()  # This looks in the chrom-view and updates any visible genes
         self.win.mainloop()
 
     def update_gene_area(self):
@@ -591,7 +646,7 @@ class MenuFunctions(FusionGUI):
                 )
 
     # Open and Load Genome
-    def load_genome_file(self, refGen):
+    def load_genome_file(self, genome_file: str):
         global FUSION_GENES
         global GENOME_LOADED
 
@@ -599,12 +654,13 @@ class MenuFunctions(FusionGUI):
 
         # Ask the user to manually select a reference file
         # file = filedialog.askopenfilename(filetypes=(("gtf files", "*.gtf"), ("All files", "*.*")))
-        file = Path(__file__).resolve().parent.parent.joinpath("Genomes/Homo_sapiens.GRCh38.100.gtf").as_posix()
+        genome_file_path = f"{GENOMES_DIR}/{genome_file}"
+        file = Path(__file__).resolve().parent.parent.joinpath(genome_file_path).as_posix()
         if file:
             try:
                 init = InitFiles(file, "GTF")
                 init.create_loading()  # Create the loading bar and load genome
-                refLbl = Label(self.GUI.frameRef, text='Reference Genome ' + str(refGen) + " in Use", bg=DEFAULT_THEME)
+                refLbl = Label(self.GUI.frameRef, text=f"Reference Genome {genome_file} in use", bg=DEFAULT_THEME)
                 refLbl.grid(row=0, column=0)
                 self.GUI.widget_list.append(refLbl)  # Thematic changes list
                 GENOME_LOADED = True
@@ -904,4 +960,5 @@ class AdditionalFunctions(FusionGUI):
 
 
 if __name__ == "__main__":
-    FusionGUI().runblue()
+    gui = FusionGUI()
+    gui.run()
