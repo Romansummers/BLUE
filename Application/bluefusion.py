@@ -177,6 +177,9 @@ class FusionGUI:
 
         if not isinstance(height, int):
             raise ValueError("height needs to be an integer")
+
+        if not isinstance(theme, Theme):
+            raise ValueError("theme needs to be of type Theme")
         
         Search = SearchFunctions(self)
         MenuFunc = MenuFunctions(self)
